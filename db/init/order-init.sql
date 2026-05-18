@@ -1,0 +1,6 @@
+CREATE TABLE IF NOT EXISTS orders (
+  id BIGSERIAL PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  description VARCHAR(255) NOT NULL,
+  amount NUMERIC(12,2) NOT NULL
+);

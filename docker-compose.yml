@@ -1,0 +1,76 @@
+services:
+  user-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: user_app
+      POSTGRES_PASSWORD: user_secret
+    ports: ["5433:5432"]
+    volumes:
+      - ./db/init/user-init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  order-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: order_db
+      POSTGRES_USER: order_app
+      POSTGRES_PASSWORD: order_secret
+    ports: ["5434:5432"]
+    volumes:
+      - ./db/init/order-init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  payment-db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: payment_db
+      POSTGRES_USER: payment_app
+      POSTGRES_PASSWORD: payment_secret
+    ports: ["5435:5432"]
+    volumes:
+      - ./db/init/payment-init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  user-service:
+    build: ./user-service
+    environment:
+      SERVER_PORT: 8081
+      DB_HOST: user-db
+      DB_PORT: 5432
+      DB_NAME: user_db
+      DB_USER: user_app
+      DB_PASSWORD: user_secret
+    depends_on: [user-db]
+    ports: ["8081:8081"]
+
+  order-service:
+    build: ./order-service
+    environment:
+      SERVER_PORT: 8082
+      DB_HOST: order-db
+      DB_PORT: 5432
+      DB_NAME: order_db
+      DB_USER: order_app
+      DB_PASSWORD: order_secret
+    depends_on: [order-db]
+    ports: ["8082:8082"]
+
+  payment-service:
+    build: ./payment-service
+    environment:
+      SERVER_PORT: 8083
+      DB_HOST: payment-db
+      DB_PORT: 5432
+      DB_NAME: payment_db
+      DB_USER: payment_app
+      DB_PASSWORD: payment_secret
+    depends_on: [payment-db]
+    ports: ["8083:8083"]
+
+  api-gateway:
+    build: ./api-gateway
+    environment:
+      SERVER_PORT: 8080
+      USER_SERVICE_URL: http://user-service:8081
+      ORDER_SERVICE_URL: http://order-service:8082
+      PAYMENT_SERVICE_URL: http://payment-service:8083
+    depends_on: [user-service, order-service, payment-service]
+    ports: ["8080:8080"]

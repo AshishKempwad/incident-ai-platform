@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS payments (
+  id BIGSERIAL PRIMARY KEY,
+  order_id BIGINT NOT NULL,
+  payment_method VARCHAR(40) NOT NULL,
+  status VARCHAR(40) NOT NULL,
+  amount NUMERIC(12,2) NOT NULL
+);
