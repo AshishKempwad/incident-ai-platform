@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "com.platform.events.notification-triggered.v1",
+  "title": "NotificationTriggeredEvent",
+  "type": "object",
+  "required": ["eventId", "eventType", "eventVersion", "occurredAt", "source", "payload"],
+  "properties": {
+    "eventId": { "type": "string" },
+    "eventType": { "const": "NotificationTriggered" },
+    "eventVersion": { "const": "v1" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string" },
+    "correlationId": { "type": ["string", "null"] },
+    "payload": {
+      "type": "object",
+      "required": ["orderId", "paymentId", "paymentStatus", "channel", "message"],
+      "properties": {
+        "orderId": { "type": "integer" },
+        "paymentId": { "type": "integer" },
+        "paymentStatus": { "type": "string" },
+        "channel": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    }
+  }
+}

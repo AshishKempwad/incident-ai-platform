@@ -1,0 +1,33 @@
+package com.platform.notification.config;
+
+import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.TopicPartition;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.kafka.config.TopicBuilder;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.util.backoff.FixedBackOff;
+
+@Configuration
+public class KafkaConfig {
+
+    @Bean
+    public NewTopic notificationTriggeredTopic() {
+        return TopicBuilder.name(TopicNames.NOTIFICATION_TRIGGERED).partitions(3).replicas(1).build();
+    }
+
+    @Bean
+    public NewTopic notificationTriggeredDltTopic() {
+        return TopicBuilder.name(TopicNames.NOTIFICATION_TRIGGERED_DLT).partitions(3).replicas(1).build();
+    }
+
+    @Bean
+    public DefaultErrorHandler notificationConsumerErrorHandler(KafkaTemplate<Object, Object> kafkaTemplate) {
+        DeadLetterPublishingRecoverer recoverer = new DeadLetterPublishingRecoverer(
+                kafkaTemplate,
+                (record, ex) -> new TopicPartition(TopicNames.NOTIFICATION_TRIGGERED_DLT, record.partition()));
+        return new DefaultErrorHandler(recoverer, new FixedBackOff(1000L, 3L));
+    }
+}

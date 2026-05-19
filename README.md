@@ -1,78 +1,128 @@
-# Incident AI Platform - Phase 1
+# Incident AI Platform
 
-Phase 1 delivers the microservice foundation:
+## Phase 1 + Phase 2 Status
+
+This repository now contains:
 - `api-gateway`
 - `user-service`
 - `order-service`
 - `payment-service`
+- `notification-service` (added in Phase 2)
 
-All services are Java 21 + Spring Boot 3, Dockerized, and runnable via Docker Compose.
+Phase 2 introduces Kafka-based event-driven flow:
 
-## Architecture (Phase 1)
+`order-service` -> `Kafka` -> `payment-service` -> `Kafka` -> `notification-service`
 
-- `api-gateway`: single entrypoint, request routing, correlation-id propagation.
-- `user-service`: user CRUD APIs backed by PostgreSQL.
-- `order-service`: order CRUD APIs backed by PostgreSQL.
-- `payment-service`: payment CRUD APIs backed by PostgreSQL.
-- Per-service PostgreSQL DB for isolation and service ownership.
-- OpenAPI docs on each service for API contract visibility.
-- Actuator health endpoints for readiness/liveness checks.
+## Why this architecture exists
 
-## Run
+- `order-service` remains the source of truth for order creation, and emits `OrderCreated`.
+- `payment-service` asynchronously reacts to order events, executes payment outcome logic, and emits downstream payment + notification events.
+- `notification-service` consumes notification trigger events and persists notification records.
+- Kafka decouples service availability and processing speed from request latency.
+- DLQ + retries + idempotency are in place to make event processing resilient and replay-safe.
 
-1. Build jars:
+## Topic naming strategy
+
+Topics use: `<domain>.v<version>.<entity>.<action>`
+
+- `incidents.v1.order.created`
+- `incidents.v1.payment.completed`
+- `incidents.v1.payment.failed`
+- `incidents.v1.notification.triggered`
+
+DLQ topics use `<topic>.dlt`:
+- `incidents.v1.order.created.dlt`
+- `incidents.v1.notification.triggered.dlt`
+
+## Event contracts (JSON schemas)
+
+Schemas are versioned under [`contracts/events`](/Users/ashishkempwad/ProjectG/incident-ai-platform/contracts/events):
+- [`order-created.v1.schema.json`](/Users/ashishkempwad/ProjectG/incident-ai-platform/contracts/events/order-created.v1.schema.json)
+- [`payment-completed.v1.schema.json`](/Users/ashishkempwad/ProjectG/incident-ai-platform/contracts/events/payment-completed.v1.schema.json)
+- [`payment-failed.v1.schema.json`](/Users/ashishkempwad/ProjectG/incident-ai-platform/contracts/events/payment-failed.v1.schema.json)
+- [`notification-triggered.v1.schema.json`](/Users/ashishkempwad/ProjectG/incident-ai-platform/contracts/events/notification-triggered.v1.schema.json)
+
+Each event contains:
+- envelope metadata (`eventId`, `eventType`, `eventVersion`, `occurredAt`, `source`, `correlationId`)
+- typed `payload`
+- Kafka header `event-version=v1`
+
+## Retry, DLQ, and idempotency
+
+- `payment-service` consumer retries `OrderCreated` 3 times with 1s backoff, then publishes to `incidents.v1.order.created.dlt`.
+- `notification-service` consumer retries `NotificationTriggered` 3 times with 1s backoff, then publishes to `incidents.v1.notification.triggered.dlt`.
+- Idempotency is enforced by persisted processed-event tables:
+  - `payment_processed_events`
+  - `notification_processed_events`
+- Duplicate `eventId` is skipped safely.
+
+## Build
+
 ```bash
 mvn clean package -DskipTests
 ```
 
-2. Start stack:
+## Local run (Docker)
+
 ```bash
 docker compose up --build
 ```
 
-3. Verify health:
-- Gateway: `http://localhost:8080/actuator/health`
-- User: `http://localhost:8081/actuator/health`
-- Order: `http://localhost:8082/actuator/health`
-- Payment: `http://localhost:8083/actuator/health`
+Services:
+- Gateway: `http://localhost:8080`
+- User: `http://localhost:8081`
+- Order: `http://localhost:8082`
+- Payment: `http://localhost:8083`
+- Notification: `http://localhost:8084`
+- Kafka broker: `localhost:9092`
 
-4. OpenAPI:
-- User: `http://localhost:8081/swagger-ui/index.html`
-- Order: `http://localhost:8082/swagger-ui/index.html`
-- Payment: `http://localhost:8083/swagger-ui/index.html`
+PostgreSQL:
+- user-db `localhost:5433`
+- order-db `localhost:5434`
+- payment-db `localhost:5435`
+- notification-db `localhost:5436`
 
-## Sample API calls (via Gateway)
+## Local test flow (Phase 2)
 
-```bash
-curl -X POST http://localhost:8080/api/users \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Alice","email":"alice@example.com"}'
-```
-
+1. Create order through gateway:
 ```bash
 curl -X POST http://localhost:8080/api/orders \
   -H "Content-Type: application/json" \
-  -d '{"userId":1,"description":"Deploy incident hotfix","amount":250.00}'
+  -H "X-Correlation-Id: test-corr-001" \
+  -d '{"userId":1,"description":"Deploy hotfix","amount":250.00}'
 ```
 
+2. Check payment records:
 ```bash
-curl -X POST http://localhost:8080/api/payments \
-  -H "Content-Type: application/json" \
-  -d '{"orderId":1,"paymentMethod":"CARD","status":"COMPLETED","amount":250.00}'
+curl http://localhost:8080/api/payments
 ```
 
-## Environment variables
+3. Check notification records:
+```bash
+curl http://localhost:8080/api/notifications
+```
 
-Each service supports:
-- `SERVER_PORT`
-- `DB_HOST`
-- `DB_PORT`
-- `DB_NAME`
-- `DB_USER`
-- `DB_PASSWORD`
+Expected:
+- An `OrderCreated` event is produced.
+- `payment-service` consumes it, persists payment, and emits:
+  - `PaymentCompleted` or `PaymentFailed`
+  - `NotificationTriggered`
+- `notification-service` consumes notification event and persists notification row.
 
-Gateway supports:
+## Configuration variables
+
+For Kafka-enabled services:
+- `KAFKA_BOOTSTRAP_SERVERS` (default `localhost:9092`)
+- `KAFKA_GROUP_ID` (payment/notification consumers)
+
+For service DB:
+- `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`
+
+For ports:
 - `SERVER_PORT`
-- `USER_SERVICE_URL`
-- `ORDER_SERVICE_URL`
-- `PAYMENT_SERVICE_URL`
+
+## Notes
+
+- Existing REST APIs from Phase 1 remain available.
+- Phase 2 intentionally stops at synchronous REST + asynchronous event backbone.
+- No further phases are implemented here.

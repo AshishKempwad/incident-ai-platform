@@ -5,3 +5,9 @@ CREATE TABLE IF NOT EXISTS payments (
   status VARCHAR(40) NOT NULL,
   amount NUMERIC(12,2) NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS payment_processed_events (
+  id BIGSERIAL PRIMARY KEY,
+  event_id VARCHAR(64) NOT NULL UNIQUE,
+  processed_at TIMESTAMPTZ NOT NULL
+);

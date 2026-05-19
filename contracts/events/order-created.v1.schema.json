@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "com.platform.events.order-created.v1",
+  "title": "OrderCreatedEvent",
+  "type": "object",
+  "required": ["eventId", "eventType", "eventVersion", "occurredAt", "source", "payload"],
+  "properties": {
+    "eventId": { "type": "string" },
+    "eventType": { "const": "OrderCreated" },
+    "eventVersion": { "const": "v1" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string" },
+    "correlationId": { "type": ["string", "null"] },
+    "payload": {
+      "type": "object",
+      "required": ["orderId", "userId", "description", "amount"],
+      "properties": {
+        "orderId": { "type": "integer" },
+        "userId": { "type": "integer" },
+        "description": { "type": "string" },
+        "amount": { "type": "number" }
+      }
+    }
+  }
+}

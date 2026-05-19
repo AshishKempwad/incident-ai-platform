@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "com.platform.events.payment-completed.v1",
+  "title": "PaymentCompletedEvent",
+  "type": "object",
+  "required": ["eventId", "eventType", "eventVersion", "occurredAt", "source", "payload"],
+  "properties": {
+    "eventId": { "type": "string" },
+    "eventType": { "const": "PaymentCompleted" },
+    "eventVersion": { "const": "v1" },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "source": { "type": "string" },
+    "correlationId": { "type": ["string", "null"] },
+    "payload": {
+      "type": "object",
+      "required": ["paymentId", "orderId", "status", "amount"],
+      "properties": {
+        "paymentId": { "type": "integer" },
+        "orderId": { "type": "integer" },
+        "status": { "type": "string" },
+        "amount": { "type": "number" },
+        "reason": { "type": ["string", "null"] }
+      }
+    }
+  }
+}
