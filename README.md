@@ -9,6 +9,9 @@ This repository now contains:
 - `payment-service`
 - `notification-service` (added in Phase 2)
 
+Phase 3 observability guide:
+- [`docs/phase-3-observability.md`](/Users/ashishkempwad/ProjectG/incident-ai-platform/docs/phase-3-observability.md)
+
 Phase 2 introduces Kafka-based event-driven flow:
 
 `order-service` -> `Kafka` -> `payment-service` -> `Kafka` -> `notification-service`

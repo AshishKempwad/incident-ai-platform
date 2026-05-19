@@ -9,12 +9,11 @@
                 <pattern>
                     <pattern>
                         {
-                        "service_name":"notification-service",
+                        "service_name":"api-gateway",
                         "level":"%level",
                         "logger":"%logger",
                         "thread":"%thread",
-                        "message":"%message",
-                        "correlationId":"%X{correlationId:-}"
+                        "message":"%message"
                         }
                     </pattern>
                 </pattern>

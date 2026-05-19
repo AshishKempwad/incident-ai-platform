@@ -1,4 +1,35 @@
 services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.14.3
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.14.3
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./observability/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
   kafka:
     image: confluentinc/cp-kafka:7.6.1
     ports:
@@ -140,3 +171,6 @@ services:
       - notification-service
     ports:
       - "8080:8080"
+
+volumes:
+  es-data:
